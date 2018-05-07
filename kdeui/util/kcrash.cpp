@@ -94,6 +94,8 @@ namespace KCrash
 
 #if defined(Q_OS_WIN)
     LONG WINAPI win32UnhandledExceptionFilter(_EXCEPTION_POINTERS *exceptionInfo);
+    static HANDLE hDebuggerEvent = 0;
+    static int exceptionResult = EXCEPTION_EXECUTE_HANDLER;
 #endif
 }
 
@@ -429,6 +431,17 @@ KCrash::defaultCrashHandler (int sig)
             argv[i++] = "--restarted"; //tell drkonqi if the app has been restarted
 
 #if defined(Q_OS_WIN)
+        // gdb > 7.12 supports sending an event
+        SECURITY_ATTRIBUTES sa;
+        ZeroMemory(&sa, sizeof (SECURITY_ATTRIBUTES));
+        sa.nLength = sizeof (SECURITY_ATTRIBUTES);
+        sa.bInheritHandle = TRUE;
+        hDebuggerEvent = CreateEvent(&sa, TRUE, FALSE, TEXT("WriteEvent"));
+        char eventHandleString[64] = { 0 };
+        sprintf( eventHandleString, "%d", (DWORD)hDebuggerEvent);
+        argv[i++] = "--signal-event";
+        argv[i++] = eventHandleString;
+
         char threadId[8] = { 0 };
         sprintf( threadId, "%d", GetCurrentThreadId() );
         argv[i++] = "--thread";
@@ -467,14 +480,21 @@ void KCrash::startProcess(int argc, const char *argv[], bool waitAndExit)
                                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     bool success = CreateProcess(0, (wchar_t*) cmdLine.utf16(), NULL, NULL,
-                                 false, CREATE_UNICODE_ENVIRONMENT, NULL, NULL,
+                                 TRUE, CREATE_UNICODE_ENVIRONMENT, NULL, NULL,
                                  &startupInfo, &procInfo);
 
     if (success && waitAndExit) {
-        // wait for child to exit
-        WaitForSingleObject(procInfo.hProcess, INFINITE);
-        _exit(253);
+        HANDLE handles[2] = { procInfo.hProcess, hDebuggerEvent };
+        DWORD dwWaitResult = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+        if (dwWaitResult == WAIT_OBJECT_0) // client process termination
+            _exit(253);
+        else if (dwWaitResult == WAIT_OBJECT_0+1) // event send from debugger
+            exceptionResult = EXCEPTION_CONTINUE_EXECUTION;
     }
+
+    if (success)
+        CloseHandle(procInfo.hProcess);
+    CloseHandle(hEvent);
 }
 
 //glue function for calling the unix signal handler from the windows unhandled exception filter
@@ -484,6 +504,7 @@ LONG WINAPI KCrash::win32UnhandledExceptionFilter(_EXCEPTION_POINTERS *exception
     // exception happened, it will walk down the stack and will stop at KiUserEventDispatch in
     // ntdll.dll, which is supposed to dispatch the exception from kernel mode back to user mode
     // so... let's create some shared memory
+    // This code is not required in case gdb is used on Windows to generate back traces
     HANDLE hMapFile = NULL;
     hMapFile = CreateFileMapping(
         INVALID_HANDLE_VALUE,
@@ -507,7 +528,7 @@ LONG WINAPI KCrash::win32UnhandledExceptionFilter(_EXCEPTION_POINTERS *exception
     }
 
     CloseHandle(hMapFile);
-    return EXCEPTION_EXECUTE_HANDLER; //allow windows to do the default action (terminate)
+    return exceptionResult; //allow windows to do the default action (terminate)
 }
 #else
 
