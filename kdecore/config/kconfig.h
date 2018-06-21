@@ -385,6 +385,12 @@ public:
      */
     QMap<QString, QString> entryMap(const QString &aGroup=QString()) const;
 
+    /**
+     * Sets the name of the application config file.
+     * @since 5.0
+     */
+    static void setMainConfigName(const QString &str);
+
 protected:
     virtual bool hasGroupImpl(const QByteArray &group) const;
     virtual KConfigGroup groupImpl( const QByteArray &b);
@@ -394,6 +400,7 @@ protected:
 
     friend class KConfigGroup;
     friend class KConfigGroupPrivate;
+    friend class KSharedConfig;
 
     /** Virtual hook, used to add new "virtual" functions while maintaining
      * binary compatibility. Unused in this class.
@@ -408,6 +415,11 @@ private:
     friend class KConfigTest;
 
     QStringList keyList(const QString& aGroup=QString()) const;
+
+    /**
+     * @internal for KSharedConfig. Could be made public if needed, though.
+     */
+    static QString mainConfigName();
 
     Q_DISABLE_COPY(KConfig)
 

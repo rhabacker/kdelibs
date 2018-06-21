@@ -36,11 +36,17 @@ KSharedConfigPtr KSharedConfig::openConfig( const QString& fileName,
 }
 
 KSharedConfigPtr KSharedConfig::openConfig( const KComponentData &componentData,
-                                            const QString& fileName,
+                                            const QString& _fileName,
                                             OpenFlags flags,
                                             const char *resType)
 {
+    QString fileName(_fileName);
     const QList<KSharedConfig*> *list = globalSharedConfigList;
+    if (fileName.isEmpty() && !flags.testFlag(KConfig::SimpleConfig)) {
+        // Determine the config file name that KConfig will make up (see KConfigPrivate::changeFileName)
+        fileName = KConfig::mainConfigName();
+    }
+
     if (list) {
         for(QList<KSharedConfig*>::ConstIterator it = list->begin(); it != list->end(); ++it) {
             if ( (*it)->name() == fileName &&

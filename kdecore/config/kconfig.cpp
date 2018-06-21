@@ -46,6 +46,7 @@
 #include <qrect.h>
 #include <qsize.h>
 #include <qcolor.h>
+#include <QtCore/QCoreApplication>
 #include <QtCore/QProcess>
 #include <QtCore/QPointer>
 #include <QtCore/QSet>
@@ -506,6 +507,41 @@ QString KConfig::name() const
     return d->fileName;
 }
 
+struct KConfigStaticData
+{
+    QString globalMainConfigName;
+    // Keep a copy so we can use it in global dtors, after qApp is gone
+    QStringList appArgs;
+};
+Q_GLOBAL_STATIC(KConfigStaticData, globalData)
+
+void KConfig::setMainConfigName(const QString &str)
+{
+    globalData()->globalMainConfigName = str;
+}
+
+QString KConfig::mainConfigName()
+{
+    KConfigStaticData* data = globalData();
+    if (data->appArgs.isEmpty())
+        data->appArgs = QCoreApplication::arguments();
+
+    // --config on the command line overrides everything else
+    const QStringList args = data->appArgs;
+    for (int i = 1; i < args.count(); ++i) {
+        if (args.at(i) == QLatin1String("--config") && i < args.count() - 1) {
+            return args.at(i + 1);
+        }
+    }
+    const QString globalName = data->globalMainConfigName;
+    if (!globalName.isEmpty()) {
+        return globalName;
+    }
+
+    QString appName = QCoreApplication::applicationName();
+    return appName + QLatin1String("rc");
+}
+
 void KConfigPrivate::changeFileName(const QString& name, const char* type)
 {
     fileName = name;
@@ -513,13 +549,10 @@ void KConfigPrivate::changeFileName(const QString& name, const char* type)
     QString file;
     if (name.isEmpty()) {
         if (wantDefaults()) { // accessing default app-specific config "appnamerc"
-            const QString appName = componentData.aboutData()->appName();
-            if (!appName.isEmpty()) {
-                fileName = appName + QLatin1String("rc");
-                if (type && *type)
-                    resourceType = type; // only change it if it's not empty
-                file = KStandardDirs::locateLocal(resourceType, fileName, false, componentData);
-            }
+            fileName = KConfig::mainConfigName();
+            if (type && *type)
+                resourceType = type; // only change it if it's not empty
+            file = KStandardDirs::locateLocal(resourceType, fileName, false, componentData);
         } else if (wantGlobals()) { // accessing "kdeglobals" - XXX used anywhere?
             resourceType = "config";
             fileName = QLatin1String("kdeglobals");

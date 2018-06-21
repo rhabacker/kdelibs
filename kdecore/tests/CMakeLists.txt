@@ -103,6 +103,14 @@ KDECORE_EXECUTABLE_TESTS(
 
 ########### kentrymaptest ###############
 
+# compile ksharedconfigtest into the test since it's not exported
+set(ksharedconfigtest_SRCS ksharedconfigtest.cpp)
+qt4_add_resources(ksharedconfigtest_SRCS sharedconfigresources.qrc)
+kde4_add_unit_test(ksharedconfigtest ${ksharedconfigtest_SRCS})
+target_link_libraries(ksharedconfigtest ${KDE4_KDECORE_LIBS} ${QT_QTTEST_LIBRARY} )
+
+########### kentrymaptest ###############
+
 # compile KEntryMap into the test since it's not exported
 set(kentrymaptest_SRCS kentrymaptest.cpp ../config/kconfigdata.cpp)
 kde4_add_unit_test(kentrymaptest ${kentrymaptest_SRCS})
