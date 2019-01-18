@@ -115,7 +115,7 @@ if (WIN32)
       kernel/kkernel_win.cpp
       kernel/ktoolinvocation_win.cpp
       kernel/kstandarddirs_win.cpp
-      localization/klocale_win.cpp
+      localization/klocale_unix.cpp
       network/klocalsocket_win.cpp
       io/klockfile_win.cpp
       util/kde_file_win.cpp
