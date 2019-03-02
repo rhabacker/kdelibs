@@ -32,6 +32,7 @@
 #include <QtGui/QScrollArea>
 
 class QPainter;
+class QPrinter;
 class QRect;
 template< typename T > class QVector;
 template <class T> class QStack;
@@ -183,6 +184,7 @@ public:
      * @param quick if true, fully automated printing, without print dialog
      */
     void print( bool quick = false );
+    void print(QPrinter *printer, bool quick = false);
 
     /**
      * Display all accesskeys in small tooltips

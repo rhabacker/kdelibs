@@ -3026,13 +3026,19 @@ namespace {
 
 void KHTMLView::print(bool quick)
 {
+    QPrinter printer;
+    print(&printer, quick);
+}
+
+void KHTMLView::print(QPrinter *_printer, bool quick)
+{
     if(!m_part->xmlDocImpl()) return;
     khtml::RenderCanvas *root = static_cast<khtml::RenderCanvas *>(m_part->xmlDocImpl()->renderer());
     if(!root) return;
 
     QPointer<KHTMLPrintSettings> printSettings(new KHTMLPrintSettings); //XXX: doesn't save settings between prints like this
     const QPointerDeleter settingsDeleter(printSettings); //the printdialog takes ownership of the settings widget, thus this workaround to avoid double deletion
-    QPrinter printer;
+    QPrinter &printer = *_printer;
     QPointer<QPrintDialog> dialog = KdePrint::createPrintDialog(&printer, KdePrint::SystemSelectsPages, QList<QWidget*>() << printSettings.data(), this);
 
     const QPointerDeleter dialogDeleter(dialog);
